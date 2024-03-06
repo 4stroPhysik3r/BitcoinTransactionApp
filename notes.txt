@@ -1,7 +1,6 @@
 Backend Services & API Internship Assignment
 Hey! Here is your assignment 😎
-Your task is to create a simple Bitcoin Wallet REST API based on a simplified
-Bitcoin transaction model.
+Your task is to create a simple Bitcoin Wallet REST API based on a simplified Bitcoin transaction model.
 
 Domain Requirements
 The API should have the following endpoints:
