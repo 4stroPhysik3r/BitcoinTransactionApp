@@ -1,0 +1,20 @@
+[
+  {
+    "transaction_id": "1a2b3c4d5e6f",
+    "amount": 3.5,
+    "spent": false,
+    "created_at": "2024-03-07T10:00:00Z"
+  },
+  {
+    "transaction_id": "7g8h9i0j1k2l",
+    "amount": 2.0,
+    "spent": true,
+    "created_at": "2024-03-06T15:30:00Z"
+  },
+  {
+    "transaction_id": "m3n4o5p6q7r",
+    "amount": 4.2,
+    "spent": false,
+    "created_at": "2024-03-05T08:45:00Z"
+  }
+]
