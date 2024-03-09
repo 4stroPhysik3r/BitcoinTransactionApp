@@ -1,7 +1,13 @@
 # Bitcoin Transaction Application
 
 ## Implementation
-Go
+GoLang
+
+## Running Application
+
+```go
+go run .
+```
 
 ## Author
 
