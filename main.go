@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -24,10 +26,15 @@ type Transaction struct {
 
 var db *sql.DB
 
+// var test_data = "transaction-data.json"
+// var test_data = "example2.json"
+var test_data = "example1.json"
+
 func main() {
 	mux := http.NewServeMux()
 
 	initDB()
+	generateTransactionID()
 
 	// Handlers
 	mux.HandleFunc("/", homePageHandler)
@@ -58,9 +65,9 @@ func initDB() {
 		log.Fatal("DB: Error executing tables", err)
 	}
 
-	err = insertTransactionsFromJSON(db, "data/transaction-data.json")
+	err = insertTransactionsFromJSON(db, "data/"+test_data)
 	if err != nil {
-		log.Fatal("Data: Error inserting dummy data: ", err)
+		log.Fatal("Data: Error inserting data: ", err)
 	}
 }
 
@@ -111,7 +118,7 @@ func balanceHandler(w http.ResponseWriter, r *http.Request) {
 	// Round EUR_balance to two decimal places
 	eurBalance = math.Round(eurBalance*100) / 100
 
-	balance := map[string]string{"BTC_balance": strconv.FormatFloat(btcBalance, 'f', 2, 64), "EUR_balance": strconv.FormatFloat(eurBalance, 'f', 2, 64)}
+	balance := map[string]string{"BTC_balance": strconv.FormatFloat(btcBalance, 'f', 5, 64), "EUR_balance": strconv.FormatFloat(eurBalance, 'f', 2, 64)} // display only until 2 decimal places
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(balance)
@@ -167,7 +174,6 @@ func insertTransactionsFromJSON(db *sql.DB, filePath string) error {
 func listTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 	// Set response headers
 	w.Header().Set("Content-Type", "application/json")
-	// log.Println("List transactions handler fired!")
 
 	db, err := sql.Open("sqlite3", "db/transactions.db")
 	if err != nil {
@@ -222,14 +228,45 @@ func transferMoneyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	amountEUR := data["amount"]
-	// Implement transfer logic here
+	// Convert EUR amount to BTC
+	amountBTC := eurToBTC(amountEUR)
+
+	// Check if the transfer amount is valid
+	if amountBTC < 0.00001 {
+		http.Error(w, "Transfer amount too small", http.StatusBadRequest)
+		return
+	}
+
+	// Retrieve unspent transactions from the database
+	unspentTransactions, err := getUnspentTransactions(db)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Calculate total balance from unspent transactions
+	totalBalance := calculateTotalBalance(unspentTransactions)
+
+	// Check if there is enough balance to cover the transfer
+	if totalBalance < amountBTC {
+		http.Error(w, "Insufficient balance", http.StatusBadRequest)
+		return
+	}
+
+	// Mark used unspent transactions as spent
+	leftoverAmount := markTransactionsAsSpent(db, unspentTransactions, amountBTC)
+
+	// If there is a leftover amount, create a new unspent transaction
+	if leftoverAmount > 0 {
+		createNewUnspentTransaction(db, leftoverAmount)
+	}
+
 	fmt.Fprintf(w, "Transfer of %.2f EUR completed", amountEUR)
 }
 
 func btcToEur(amountBTC float64) float64 {
 	// Fetch exchange rate from API
 	rate, err := fetchEurToBtcRate()
-	fmt.Println("BTC to EUR rate:", rate)
 	if err != nil {
 		log.Println("Error fetching exchange rate:", err)
 		return 0
@@ -237,6 +274,18 @@ func btcToEur(amountBTC float64) float64 {
 
 	// Implement BTC to EUR conversion logic here
 	return amountBTC * rate
+}
+
+func eurToBTC(amountEUR float64) float64 {
+	// Fetch exchange rate from API
+	rate, err := fetchEurToBtcRate()
+	if err != nil {
+		log.Println("Error fetching exchange rate:", err)
+		return 0
+	}
+
+	// Implement EUR to BTC conversion logic here
+	return amountEUR / rate
 }
 
 func fetchEurToBtcRate() (float64, error) {
@@ -273,4 +322,82 @@ func fetchEurToBtcRate() (float64, error) {
 	}
 
 	return 0, fmt.Errorf("exchange rate for BTC/EUR not found in response")
+}
+
+func getUnspentTransactions(db *sql.DB) ([]Transaction, error) {
+	// Query the database to retrieve unspent transactions
+	rows, err := db.Query("SELECT transaction_id, amount FROM transactions WHERE spent = 0")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var unspentTransactions []Transaction
+	for rows.Next() {
+		var tx Transaction
+		err := rows.Scan(&tx.TransactionID, &tx.Amount)
+		if err != nil {
+			return nil, err
+		}
+		unspentTransactions = append(unspentTransactions, tx)
+	}
+
+	return unspentTransactions, nil
+}
+
+func calculateTotalBalance(transactions []Transaction) float64 {
+	var totalBalance float64
+	for _, tx := range transactions {
+		totalBalance += tx.Amount
+	}
+	return totalBalance
+}
+
+func markTransactionsAsSpent(db *sql.DB, transactions []Transaction, amountBTC float64) float64 {
+	var totalUsedAmount float64
+	for _, tx := range transactions {
+		// Mark the transaction as spent
+		_, err := db.Exec("UPDATE transactions SET spent = 1 WHERE transaction_id = ?", tx.TransactionID)
+		if err != nil {
+			log.Println("Error marking transaction as spent:", err)
+			continue
+		}
+		totalUsedAmount += tx.Amount
+		// Check if the total used amount is greater than or equal to the transfer amount
+		if totalUsedAmount >= amountBTC {
+			break
+		}
+	}
+	// Calculate leftover amount
+	leftoverAmount := totalUsedAmount - amountBTC
+	return leftoverAmount
+}
+
+func createNewUnspentTransaction(db *sql.DB, amountBTC float64) {
+	// Generate transaction ID
+	transactionID, err := generateTransactionID()
+	if err != nil {
+		log.Println("Error generating transaction ID:", err)
+		return
+	}
+
+	// Insert a new unspent transaction with the leftover amount
+	_, err = db.Exec("INSERT INTO transactions (transaction_id, amount, spent, created_at) VALUES (?, ?, ?, ?)",
+		transactionID, amountBTC, 0, time.Now())
+	if err != nil {
+		log.Println("Error creating new unspent transaction:", err)
+	}
+}
+
+func generateTransactionID() (string, error) {
+	// Generate a random byte slice
+	randomBytes := make([]byte, 16)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return "", err
+	}
+
+	// Encode the random bytes to hexadecimal string
+	transactionID := hex.EncodeToString(randomBytes)
+	return transactionID, nil
 }

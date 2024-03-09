@@ -9,34 +9,38 @@
 }
 
 body {
-   /* width: 100vh; */
    font-family: Arial, sans-serif;
    color: darkslategray;
    text-align: center;
 }
 
 header {
+   position: sticky;
+   top: 0;
    padding: 20px;
    background-color: var(--main-color);
+   z-index: 3;
 }
 
 h1 {
    color: var(--font-color);
 }
 
-h2 {
+h3 {
    font-style: italic;
    margin-bottom: 1rem;
    text-decoration: 2px underline;
 }
 
-#transactions {
+#transactions,
+#transactionsHistory {
    width: 60%;
    margin: 20px auto;
    padding: 20px;
 }
 
-.transaction {
+.transaction,
+.transactionHistory {
    display: inline-block;
    width: 80%;
    border: 1px solid var(--sec-color);
@@ -45,17 +49,9 @@ h2 {
    margin-bottom: 10px;
 }
 
-.transaction p {
+.transaction p,
+.transactionHistory p {
    margin: 5px 0;
-}
-
-.transaction p strong {
-   font-weight: bold;
-}
-
-.transaction hr {
-   margin-top: 10px;
-   border-top: 1px solid var(--sec-color);
 }
 
 #balance {
@@ -69,7 +65,7 @@ h2 {
 
 #balance p {
    text-align: left;
-   margin: 0 60px;
+   margin: 0 40px;
 }
 
 footer {
