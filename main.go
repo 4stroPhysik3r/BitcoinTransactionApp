@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -29,9 +31,9 @@ func main() {
 
 	// Handlers
 	mux.HandleFunc("/", homePageHandler)
-	mux.HandleFunc("/transactions", listTransactions)
-	mux.HandleFunc("/balance", getBalance)
-	mux.HandleFunc("/transfer", transferMoney)
+	mux.HandleFunc("/transactions", listTransactionsHandler)
+	mux.HandleFunc("/balance", balanceHandler)
+	mux.HandleFunc("/transfer", transferMoneyHandler)
 	log.Println("Server started at http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }
@@ -44,7 +46,6 @@ func initDB() {
 	if err != nil {
 		log.Fatal("DB: Error opening database", err)
 	}
-	// defer db.Close()
 
 	// Create transactions table if it does not exist
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS transactions (
@@ -78,6 +79,42 @@ func homePageHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Serve files in the current directory
 	http.FileServer(http.Dir(".")).ServeHTTP(w, r)
+}
+
+func balanceHandler(w http.ResponseWriter, r *http.Request) {
+	db, err := sql.Open("sqlite3", "db/transactions.db")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	rows, err := db.Query("SELECT amount FROM transactions WHERE spent = 0")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var btcBalance float64
+	for rows.Next() {
+		var amount float64
+		err := rows.Scan(&amount)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		btcBalance += amount
+	}
+
+	eurBalance := btcToEur(btcBalance)
+	// Round EUR_balance to two decimal places
+	eurBalance = math.Round(eurBalance*100) / 100
+
+	balance := map[string]string{"BTC_balance": strconv.FormatFloat(btcBalance, 'f', 2, 64), "EUR_balance": strconv.FormatFloat(eurBalance, 'f', 2, 64)}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(balance)
 }
 
 func insertTransactionsFromJSON(db *sql.DB, filePath string) error {
@@ -127,7 +164,7 @@ func insertTransactionsFromJSON(db *sql.DB, filePath string) error {
 	return nil
 }
 
-func listTransactions(w http.ResponseWriter, r *http.Request) {
+func listTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 	// Set response headers
 	w.Header().Set("Content-Type", "application/json")
 	// log.Println("List transactions handler fired!")
@@ -171,38 +208,7 @@ func listTransactions(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getBalance(w http.ResponseWriter, r *http.Request) {
-	db, err := sql.Open("sqlite3", "db/transactions.db")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
-	rows, err := db.Query("SELECT amount FROM transactions WHERE spent = 0")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	var btcBalance float64
-	for rows.Next() {
-		var amount float64
-		err := rows.Scan(&amount)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		btcBalance += amount
-	}
-
-	eurBalance := btcToEur(btcBalance)
-	balance := map[string]float64{"BTC_balance": btcBalance, "EUR_balance": eurBalance}
-	json.NewEncoder(w).Encode(balance)
-}
-
-func transferMoney(w http.ResponseWriter, r *http.Request) {
+func transferMoneyHandler(w http.ResponseWriter, r *http.Request) {
 	db, err := sql.Open("sqlite3", "db/transactions.db")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -223,6 +229,7 @@ func transferMoney(w http.ResponseWriter, r *http.Request) {
 func btcToEur(amountBTC float64) float64 {
 	// Fetch exchange rate from API
 	rate, err := fetchEurToBtcRate()
+	fmt.Println("BTC to EUR rate:", rate)
 	if err != nil {
 		log.Println("Error fetching exchange rate:", err)
 		return 0
@@ -239,16 +246,31 @@ func fetchEurToBtcRate() (float64, error) {
 	}
 	defer resp.Body.Close()
 
-	var data map[string]float64
-	err = json.NewDecoder(resp.Body).Decode(&data)
+	var responseData map[string][]map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&responseData)
 	if err != nil {
 		return 0, err
 	}
 
-	rate, ok := data["BTC_EUR"]
+	data, ok := responseData["data"]
 	if !ok {
-		return 0, fmt.Errorf("exchange rate not found in response")
+		return 0, fmt.Errorf("response does not contain data key")
 	}
 
-	return rate, nil
+	for _, entry := range data {
+		symbol, ok := entry["symbol"].(string)
+		if ok && symbol == "BTC/EUR" {
+			valueStr, ok := entry["value"].(string)
+			if !ok {
+				return 0, fmt.Errorf("value for BTC/EUR is not a string")
+			}
+			rate, err := strconv.ParseFloat(valueStr, 64)
+			if err != nil {
+				return 0, err
+			}
+			return rate, nil
+		}
+	}
+
+	return 0, fmt.Errorf("exchange rate for BTC/EUR not found in response")
 }
