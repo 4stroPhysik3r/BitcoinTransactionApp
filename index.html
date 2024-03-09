@@ -3,14 +3,32 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="shortcut icon"
+      href="/static/favicon/favicon.ico"
+      type="image/x-icon"
+    />
     <link rel="stylesheet" href="styles.css" />
     <script src="main.js" defer></script>
     <title>Bitcoin Transaction App</title>
   </head>
 
   <body>
-    <h1>Transactions Details</h1>
-    <div id="transactions"></div>
+    <header>
+      <h1>Bitcoin Transaction App</h1>
+    </header>
+
+    <div id="balance">
+      <p>Loading balance....</p>
+    </div>
+
+    <div id="transactions">
+      <h3>Unspent Bitcoins:</h3>
+    </div>
+
+    <div id="transactionsHistory">
+      <h3>Transactions History:</h3>
+    </div>
 
     <footer>
       made by

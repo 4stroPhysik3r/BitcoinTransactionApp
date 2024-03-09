@@ -2,6 +2,7 @@
 
 ## Implementation
 GoLang
+SQLite Database
 
 ## Running Application
 
