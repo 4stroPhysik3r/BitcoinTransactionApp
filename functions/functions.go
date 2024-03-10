@@ -24,11 +24,11 @@ type Transaction struct {
 }
 
 var testData = []string{
-	"transaction-data.json",
-	"example0.json",
+	"badExample.json",
+	"emptyData.json",
 	"example1.json",
 	"example2.json",
-	"example3.json",
+	"transaction-data.json",
 }
 
 func InitDB() {
@@ -51,7 +51,7 @@ func InitDB() {
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS transactions (
 		transaction_id TEXT PRIMARY KEY,
 		amount REAL,
-		spent INTEGER,
+		spent BOOLEAN NOT NULL,
 		created_at TIMESTAMP
 	);`)
 	if err != nil {
@@ -59,7 +59,7 @@ func InitDB() {
 	}
 
 	// insert "testData" into DB
-	err = insertTransactionsFromJSON(db, "data/"+testData[0])
+	err = insertTransactionsFromJSON(db, "data/"+testData[4])
 	if err != nil {
 		log.Fatal("Data: Error inserting data: ", err)
 	}

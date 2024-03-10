@@ -6,7 +6,6 @@ const transactionHistoryDiv = document.getElementById("transactionsHistory");
 fetch("/balance")
    .then((response) => response.json())
    .then((balance) => {
-
       balanceDiv.innerHTML = `
             <h2>Your Balance:</h2>
             <p><strong>BTC Balance:</strong> ${balance.BTC_balance} ₿ / ${numberWithCommas(balance.EUR_balance)} €</p>
@@ -25,10 +24,15 @@ function numberWithCommas(x) {
 fetch("/transactions")
    .then((response) => response.json())
    .then((data) => {
-      transactionsDiv.innerHTML = ""
+      data.forEach((data) => {
+         if (data && data.amount > 0) {
+            transactionsDiv.innerHTML = ""
+         }
+      })
 
       data.forEach((transaction) => {
-         if (!transaction.spent) { // Check if transaction is not spent
+         if (!transaction.spent && transaction.amount != 0) { // Check if transaction is not spent or zero
+
             const transactionDiv = document.createElement("div");
             transactionDiv.classList.add("transaction");
 
@@ -42,12 +46,13 @@ fetch("/transactions")
             transactionsDiv.appendChild(transactionDiv);
          }
       });
+
    })
    .catch((error) => {
       transactionsDiv.innerHTML = ""
 
       const noTransactionsMessage = document.createElement("div");
-      noTransactionsMessage.textContent = "No unspent transactions available";
+      noTransactionsMessage.textContent = "Error fetching unspent transactions";
       transactionsDiv.appendChild(noTransactionsMessage);
       console.error("Error fetching transaction data:", error)
    });
@@ -56,19 +61,24 @@ fetch("/transactions")
 fetch("/transactions")
    .then((response) => response.json())
    .then((data) => {
-      transactionHistoryDiv.innerHTML = ""
+      data.forEach((data) => {
+         if (data.spent) {
+            transactionHistoryDiv.innerHTML = ""
+         }
+      })
 
       data.forEach((transaction) => {
          if (transaction.spent) { // Check if transaction is not spent
+
             const transactionHistory = document.createElement("div");
             transactionHistory.classList.add("transactionHistory");
 
             transactionHistory.innerHTML = `
-               <p class="transaction"><strong>Transaction ID:</strong> ${transaction.transaction_id}</p>
-               <p class="amount"><strong>Amount:</strong> ${transaction.amount}</p>
-               <p class="spent"><strong>Spent:</strong> ${transaction.spent ? "Yes" : "No"}</p>
-               <p class="date"><strong>Created At:</strong> ${new Date(transaction.created_at).toLocaleString()}</p>
-               `;
+                  <p class="transaction"><strong>Transaction ID:</strong> ${transaction.transaction_id}</p>
+                  <p class="amount"><strong>Amount:</strong> ${transaction.amount}</p>
+                  <p class="spent"><strong>Spent:</strong> ${transaction.spent ? "Yes" : "No"}</p>
+                  <p class="date"><strong>Created At:</strong> ${new Date(transaction.created_at).toLocaleString()}</p>
+                  `;
 
             transactionHistoryDiv.appendChild(transactionHistory);
          }
@@ -78,7 +88,7 @@ fetch("/transactions")
       transactionHistoryDiv.innerHTML = ""
 
       const noHistoryMessage = document.createElement("div");
-      noHistoryMessage.textContent = "No transaction history available";
+      noHistoryMessage.textContent = "Error fetching transaction history";
       transactionHistoryDiv.appendChild(noHistoryMessage);
       console.error("Error fetching transaction data:", error)
    });
