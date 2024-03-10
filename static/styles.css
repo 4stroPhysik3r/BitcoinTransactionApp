@@ -32,11 +32,26 @@ h3 {
    text-decoration: 2px underline;
 }
 
+#balance {
+   width: 40%;
+   padding: 20px;
+   margin: 20px auto;
+   margin-bottom: 40px;
+   border: 2px solid var(--sec-color);
+   border-radius: 2rem;
+   background-color: #f0f0f0;
+}
+
+#balance p {
+   margin: 0 40px;
+}
+
 #transactions,
 #transactionsHistory {
    width: 60%;
    margin: 20px auto;
-   padding: 20px;
+   margin-top: 0;
+   padding-bottom: 20px;
 }
 
 .transaction,
@@ -52,20 +67,6 @@ h3 {
 .transaction p,
 .transactionHistory p {
    margin: 5px 0;
-}
-
-#balance {
-   width: 40%;
-   padding: 20px;
-   margin: 10px auto;
-   border: 2px solid var(--sec-color);
-   border-radius: 2rem;
-   background-color: #f0f0f0;
-}
-
-#balance p {
-   text-align: left;
-   margin: 0 40px;
 }
 
 footer {
