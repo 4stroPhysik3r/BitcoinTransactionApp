@@ -13,57 +13,12 @@ import (
 	"time"
 )
 
-var db *sql.DB
-
 // Transaction represents a Bitcoin transaction
 type Transaction struct {
 	TransactionID string    `json:"transaction_id"`
 	Amount        float64   `json:"amount"`
 	Spent         bool      `json:"spent"`
 	CreatedAt     time.Time `json:"created_at"`
-}
-
-var testData = []string{
-	"badExample.json",
-	"emptyData.json",
-	"example1.json",
-	"example2.json",
-	"transaction-data.json",
-}
-
-func InitDB() {
-	log.Println("Database Initiated")
-
-	var err error
-	db, err = sql.Open("sqlite3", "db/transactions.db")
-	if err != nil {
-		log.Fatal("DB: Error opening database", err)
-	}
-
-	/// testing purposes only
-	// Drop previous tables
-	_, err = db.Exec(`DROP TABLE IF EXISTS transactions;`)
-	if err != nil {
-		log.Fatal("DB: Error dropping tables", err)
-	}
-
-	// Create transactions table if it does not exist
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS transactions (
-		transaction_id TEXT PRIMARY KEY,
-		amount REAL,
-		spent BOOLEAN NOT NULL,
-		created_at TIMESTAMP
-	);`)
-	if err != nil {
-		log.Fatal("DB: Error executing tables", err)
-	}
-
-	// insert "testData" into DB
-	err = insertTransactionsFromJSON(db, "data/"+testData[4])
-	if err != nil {
-		log.Fatal("Data: Error inserting data: ", err)
-	}
-	////////////////////////////////
 }
 
 func insertTransactionsFromJSON(db *sql.DB, filePath string) error {

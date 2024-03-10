@@ -120,9 +120,7 @@ func TransferMoneyHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	amountEUR := data["amount"]
-	// Convert EUR amount to BTC
-	amountBTC := functions.EurToBTC(amountEUR)
+	amountBTC := data["amount"]
 
 	// Check if the transfer amount is valid
 	if amountBTC < 0.00001 {
@@ -154,5 +152,5 @@ func TransferMoneyHandler(w http.ResponseWriter, r *http.Request) {
 		functions.CreateNewUnspentTransaction(db, leftoverAmount)
 	}
 
-	fmt.Fprintf(w, "Transfer of %.2f EUR completed", amountEUR)
+	fmt.Fprintf(w, "Transfer of %.2f BTC completed", amountBTC)
 }
