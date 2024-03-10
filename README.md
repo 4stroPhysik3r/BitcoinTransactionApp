@@ -20,6 +20,6 @@ API Testing via Postman
 For the dummy data in database, there is a folder "data" with examples in it.
 In the "initDB.go" file, where it says "change data here", it is possible to switch between the different data files.
 
-## Author
+### Author
 
 [4stroPhysik3r](https://github.com/4stroPhysik3r)
