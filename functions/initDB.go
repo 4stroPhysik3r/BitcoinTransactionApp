@@ -5,6 +5,8 @@ import (
 	"log"
 )
 
+var db *sql.DB
+
 var testData = []string{
 	"badExample.json",
 	"emptyData.json",
@@ -12,8 +14,6 @@ var testData = []string{
 	"example2.json",
 	"transaction-data.json",
 }
-
-var db *sql.DB
 
 func InitDB() {
 	log.Println("Database Initiated")
